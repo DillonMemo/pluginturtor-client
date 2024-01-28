@@ -1,6 +1,7 @@
 {
   "title": "Short Cut",
   "description": "플러그인 튜터와 함께하는 Shortcuts",
+  "hello_plugin_tutor": "안녕👋 플러그인 튜터",
   "chrome_required_text": "해당 서비스는 크롬브라우저를 권장 합니다.",
   "chrome_required_download": "다운로드 바로가기",
   "unsupport_chrome_text": "크롬 버전 116이상 이용 가능합니다.",
