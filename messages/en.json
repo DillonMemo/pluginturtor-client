@@ -1,0 +1,8 @@
+{
+  "title": "Short Cut",
+  "description": "Plugin Tutor with Shortcuts",
+  "chrome_required_text": "The service recommends using the Chrome browser.",
+  "chrome_required_download": "Download Shortcut",
+  "unsupport_chrome_text": "Available for Chrome version 116 and above.",
+  "unsupport_chrome_link": "Shortcut"
+}
