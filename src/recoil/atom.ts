@@ -5,7 +5,7 @@ export const loadingState = atom<boolean>({
   default: true,
 })
 
-export const chromeVersionState = atom<number | undefined>({
-  key: 'chromeVersion',
-  default: undefined,
+export const isChromeState = atom<boolean>({
+  key: 'isChrome',
+  default: false,
 })

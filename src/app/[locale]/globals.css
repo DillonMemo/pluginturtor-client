@@ -33,7 +33,7 @@ body {
 @layer base {
   @font-face {
     font-family: 'Pretendard';
-    src: url('/public/fonts/PretendardVariable.woff2') format('woff2');
+    src: url('/fonts/PretendardVariable.woff2') format('woff2');
     font-display: swap;
   }
 
