@@ -5,7 +5,40 @@ import styled from 'styled-components'
 
 export default function FirstSample() {
   const onFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('file upload', e)
+    try {
+      const {
+        target: { files },
+      } = e
+      if (files) {
+        const file = files[0]
+
+        const formData = new FormData()
+        formData.append('file', file, file.name)
+        const response = await fetch('http://localhost:4001/shortcut/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        console.log('response', response)
+        const blob = await response.blob()
+        console.log('blob', blob)
+
+        // const result = await response.json()
+        // console.log('response2', result)
+
+        // const videoNode = document.querySelector('.upload-video')
+        // if (videoNode instanceof HTMLVideoElement) {
+        //   const { buffer, mimetype } = result
+        //   const arrayBuffer = new Uint8Array(buffer.data).buffer
+
+        //   const blob = new Blob([arrayBuffer], { type: mimetype })
+        //   const url = URL.createObjectURL(blob)
+        //   debugger
+        //   videoNode.src = url
+        // }
+      }
+    } catch (error) {
+      console.error(error)
+    }
   }
   return (
     <Main>
@@ -42,6 +75,13 @@ export default function FirstSample() {
           <span className="upload-button-text">Upload</span>
         </label>
       </UploadButton>
+
+      <div>
+        <video
+          style={{ marginTop: '2rem', width: 200, height: 300 }}
+          className="upload-video"
+          controls></video>
+      </div>
     </Main>
   )
 }
