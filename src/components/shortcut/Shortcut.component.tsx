@@ -2,16 +2,16 @@
 
 import { isChromeState, loadingState } from '@/src/recoil/atom'
 import ChromeRequired from './ChromeRequired.component'
-import FirstSample from './\bFirstSample.component'
 import Loading from '../Loading'
+import SSRWrapper from './SSRWrapper.component'
 import dynamic from 'next/dynamic'
 import styled from 'styled-components'
 import { useEffect } from 'react'
 import { useRecoilState } from 'recoil'
 
 const Shortcut: React.FC = () => {
-  const SSRTest = dynamic(() => Promise.resolve(FirstSample), { ssr: false })
   const [loading, setLoading] = useRecoilState(loadingState)
+  const SSRTest = dynamic(() => Promise.resolve(SSRWrapper), { ssr: false })
   const [isChrome, setIsChrome] = useRecoilState(isChromeState)
 
   useEffect(() => {

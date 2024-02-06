@@ -3,7 +3,7 @@
 import { Main } from './Shortcut.component'
 import styled from 'styled-components'
 
-export default function FirstSample() {
+export default function SSRWrapper() {
   const onFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const {
@@ -18,23 +18,10 @@ export default function FirstSample() {
           method: 'POST',
           body: formData,
         })
-        console.log('response', response)
-        const blob = await response.blob()
-        console.log('blob', blob)
-
-        // const result = await response.json()
-        // console.log('response2', result)
-
-        // const videoNode = document.querySelector('.upload-video')
-        // if (videoNode instanceof HTMLVideoElement) {
-        //   const { buffer, mimetype } = result
-        //   const arrayBuffer = new Uint8Array(buffer.data).buffer
-
-        //   const blob = new Blob([arrayBuffer], { type: mimetype })
-        //   const url = URL.createObjectURL(blob)
-        //   debugger
-        //   videoNode.src = url
-        // }
+        if (response.status === 200) {
+          const json = await response.json()
+          console.log('json', json)
+        }
       }
     } catch (error) {
       console.error(error)
@@ -79,8 +66,7 @@ export default function FirstSample() {
       <div>
         <video
           style={{ marginTop: '2rem', width: 200, height: 300 }}
-          className="upload-video"
-          controls></video>
+          className="upload-video"></video>
       </div>
     </Main>
   )
