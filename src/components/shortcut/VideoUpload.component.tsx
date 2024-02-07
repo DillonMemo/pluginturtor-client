@@ -1,11 +1,18 @@
 'use client'
 
-import { Main } from './Shortcut.component'
+import { editDataSourceState, isEditState, loadingState } from '@/src/recoil/atom'
+import { useRecoilState, useSetRecoilState } from 'recoil'
+import { Multer } from '@/src/type'
 import styled from 'styled-components'
 
-export default function SSRWrapper() {
+export default function VideoUpload() {
+  const [loading, setLoading] = useRecoilState(loadingState)
+  const setIsEdit = useSetRecoilState(isEditState)
+  const setEditDataSource = useSetRecoilState(editDataSourceState)
+
   const onFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
+      setLoading(true)
       const {
         target: { files },
       } = e
@@ -14,29 +21,57 @@ export default function SSRWrapper() {
 
         const formData = new FormData()
         formData.append('file', file, file.name)
-        const response = await fetch('http://localhost:4001/shortcut/upload', {
+
+        const url =
+          process.env.NODE_ENV === 'development'
+            ? 'http://localhost:4001/shortcut/upload'
+            : 'https://localhost:4001/shortcut/upload'
+        const response = await fetch(url, {
           method: 'POST',
           body: formData,
         })
         if (response.status === 200) {
-          const json = await response.json()
-          console.log('json', json)
+          const {
+            success,
+            video,
+          }: {
+            success: boolean
+            thumbnails: Multer.MulterFile[]
+            video: Multer.MulterFile
+          } = await response.json()
+          if (success) {
+            const buffer = Buffer.from(video.buffer.data)
+            const base64Data = buffer.toString('base64')
+            // 데이터 URI 생성
+            setEditDataSource((prev) => ({
+              ...prev,
+              videoDataURI: `data:${video.mimetype};base64,${base64Data}`,
+              videoMimeType: video.mimetype,
+            }))
+
+            setIsEdit(true)
+          }
         }
       }
     } catch (error) {
       console.error(error)
+    } finally {
+      setLoading(false)
     }
   }
+
   return (
-    <Main>
-      <VideoUploadInput
+    <div className="upload-fn-wrapper">
+      <input
         type="file"
         name="video-upload"
         id="video-upload"
+        className="hidden"
         onChange={onFileUpload}
         accept="video/*"
       />
-      <UploadButton className="upload-button" type="button">
+
+      <UploadButton className="upload-button" type="button" role="button">
         <label htmlFor="video-upload">
           <svg
             className="upload-button-border"
@@ -59,22 +94,13 @@ export default function SSRWrapper() {
               opacity="0"
             />
           </svg>
-          <span className="upload-button-text">Upload</span>
+          <span className="upload-button-text">Video Upload</span>
         </label>
       </UploadButton>
-
-      <div>
-        <video
-          style={{ marginTop: '2rem', width: 200, height: 300 }}
-          className="upload-video"></video>
-      </div>
-    </Main>
+    </div>
   )
 }
 
-const VideoUploadInput = styled.input`
-  display: none;
-`
 const UploadButton = styled.button`
   /* Animations */
   @keyframes flyIn1 {
@@ -177,7 +203,7 @@ const UploadButton = styled.button`
     background: #255ff4;
     color: #fff;
     width: 6rem;
-    padding: 0.5rem 1rem;
+    padding: 1rem 1.25rem;
     border-radius: 1.25rem;
     transition: all 0.1s linear;
 
