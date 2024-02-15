@@ -1,13 +1,12 @@
 'use client'
 
-import { editDataSourceState, isEditState, loadingState } from '@/src/recoil/atom'
-import { useRecoilState, useSetRecoilState } from 'recoil'
+import { editDataSourceState, loadingState } from '@/src/recoil/atom'
 import { Multer } from '@/src/type'
 import styled from 'styled-components'
+import { useSetRecoilState } from 'recoil'
 
 export default function VideoUpload() {
-  const [loading, setLoading] = useRecoilState(loadingState)
-  const setIsEdit = useSetRecoilState(isEditState)
+  const setLoading = useSetRecoilState(loadingState)
   const setEditDataSource = useSetRecoilState(editDataSourceState)
 
   const onFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,11 +44,10 @@ export default function VideoUpload() {
             // 데이터 URI 생성
             setEditDataSource((prev) => ({
               ...prev,
+              isEdit: true,
               videoDataURI: `data:${video.mimetype};base64,${base64Data}`,
               videoMimeType: video.mimetype,
             }))
-
-            setIsEdit(true)
           }
         }
       }
@@ -61,7 +59,8 @@ export default function VideoUpload() {
   }
 
   return (
-    <div className="upload-fn-wrapper">
+    <UploadWrapper className="upload-fn-wrapper">
+      {/* video file type must be MP4 */}
       <input
         type="file"
         name="video-upload"
@@ -97,9 +96,26 @@ export default function VideoUpload() {
           <span className="upload-button-text">Video Upload</span>
         </label>
       </UploadButton>
-    </div>
+
+      <div className="upload-description">
+        <p>Lorem ipsum dolor sit amet.</p>
+        <p>Lorem ipsum dolor sit amet.</p>
+      </div>
+    </UploadWrapper>
   )
 }
+
+const UploadWrapper = styled.div`
+  display: flex;
+  flex-flow: column nowrap;
+  gap: 1.25rem;
+  .upload-description {
+    display: flex;
+    flex-flow: column nowrap;
+    align-items: center;
+    gap: 0.25rem;
+  }
+`
 
 const UploadButton = styled.button`
   /* Animations */
@@ -163,6 +179,7 @@ const UploadButton = styled.button`
   cursor: pointer;
   position: relative;
   text-align: center;
+  padding: 1rem 0;
 
   -webkit-tap-highlight-color: #0000;
   -webkit-appearance: none;

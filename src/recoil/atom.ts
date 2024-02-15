@@ -10,18 +10,15 @@ export const isChromeState = atom<boolean>({
   default: false,
 })
 
-export const isEditState = atom<boolean>({
-  key: 'isEdit',
-  default: false,
-})
-
 export type EditDataSource = {
+  isEdit: boolean
   videoDataURI: string
   videoMimeType: string
 }
 export const editDataSourceState = atom<EditDataSource>({
   key: 'editDataSource',
   default: {
+    isEdit: false,
     videoDataURI: '',
     videoMimeType: '',
   },

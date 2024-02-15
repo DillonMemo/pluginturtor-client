@@ -1,7 +1,7 @@
 'use client'
 
 import { isChromeState, loadingState } from '@/src/recoil/atom'
-import ChromeRequired from './ChromeRequired.component'
+import ChromeRequired from '../ChromeRequired.component'
 import Loading from '../Loading'
 import Wrapper from './Wrapper.component'
 import styled from 'styled-components'
@@ -47,7 +47,6 @@ export const Main = styled.main`
 
   padding: 2rem 2.5rem;
   display: flex;
-  flex-flow: column nowrap;
   justify-content: center;
   align-items: center;
 

@@ -1,4 +1,4 @@
-import { Main } from './Shortcut.component'
+import { Main } from './shortcut/Shortcut.component'
 import { useTranslations } from 'next-intl'
 
 export default function ChromeRequired() {

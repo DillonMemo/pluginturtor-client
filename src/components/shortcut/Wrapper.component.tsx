@@ -1,34 +1,49 @@
 'use client'
 
-import { editDataSourceState, isEditState } from '@/src/recoil/atom'
 import { Main } from './Shortcut.component'
-import VideoUpload from './VideoUpload.component'
+import ToolContainer from './ToolContainer.component'
+import TopContainer from './TopContainer.component'
 import styled from 'styled-components'
-import { useRecoilValue } from 'recoil'
 
 export default function Wrapper() {
-  const isEdit = useRecoilValue(isEditState)
-  const editDataSource = useRecoilValue(editDataSourceState)
-
   return (
     <Main>
-      {!isEdit && <VideoUpload />}
-
-      <EditWrapper className={`edit-wrapper ${!isEdit && 'hidden'}`}>
-        {editDataSource.videoDataURI && (
-          <video className="edit-video">
-            <source src={editDataSource.videoDataURI} type={editDataSource.videoMimeType} />
-          </video>
-        )}
-
-        <h2 style={{ color: 'white' }}>HELLO VIDEO</h2>
+      <EditWrapper className={`edit-wrappe`}>
+        <TopContainer />
+        <ToolContainer />
       </EditWrapper>
     </Main>
   )
 }
 
 const EditWrapper = styled.div`
-  video.edit-video {
-    max-height: 16.25rem;
+  * {
+    outline: none;
+  }
+
+  display: flex;
+  flex-flow: column nowrap;
+  align-items: center;
+  gap: 3rem;
+
+  overflow: hidden;
+
+  max-width: 50rem;
+  width: 100%;
+  height: 100%;
+
+  .video-container {
+    user-select: none;
+
+    display: flex;
+    flex-grow: 1;
+    position: relative;
+
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    video {
+      max-height: 16.25rem;
+    }
   }
 `
