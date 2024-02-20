@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import Shortcut from '@/src/components/shortcut/Shortcut.component'
+import Shortcut from '@/src/components/shortcut.plugin'
 
 export const metadata: Metadata = {
   title: 'Short Cut',

@@ -1,6 +1,11 @@
 export default function Loading() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="4rem" height="4rem" viewBox="0 0 24 24">
+    <svg
+      className="loading-svg"
+      xmlns="http://www.w3.org/2000/svg"
+      width="4rem"
+      height="4rem"
+      viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="0" fill="currentColor">
         <animate
           id="svgSpinnersPulse30"

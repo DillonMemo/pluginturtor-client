@@ -29,3 +29,5 @@ export namespace Multer {
     buffer: { type: string; data: number[] }
   }
 }
+
+export type SVGProps = React.SVGProps<SVGSVGElement>
