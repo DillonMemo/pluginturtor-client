@@ -8,6 +8,7 @@ import { Multer } from '@/src/type'
 import { convertMillisecondsToTime } from '@/src/utils'
 import styled from 'styled-components'
 import { useRecoilState } from 'recoil'
+import * as d3 from 'd3'
 
 const Shortcut: React.FC = () => {
   const [loading, setLoading] = useRecoilState(loadingState)
@@ -108,6 +109,106 @@ const Shortcut: React.FC = () => {
   //     return () => window.removeEventListener('mouseup', onMouseUpCursor)
   //   }, [])
 
+  useEffect(() => {
+    if (!isEdit) return
+    // function contains([[x0, y0], [x1, y1]]: number[][], [x, y]: number[]) {
+    //   return x >= x0 && x < x1 && y >= y0 && y < y1
+    // }
+    // function brushed(selection: any) {
+    //   point.attr('fill', selection && ((d) => (contains(selection, d) ? 'red' : null)))
+    // }
+    // function brushended(event: d3.D3BrushEvent<SVGElement>) {
+    //   if (!event.sourceEvent) return
+    //   const brushEl = document.querySelector('.brush-group')
+    //   console.log('1', defaultExtent, [[100,100],[200, 200]])
+    //   d3.select(brushEl)
+    //     .transition()
+    //     .delay(100)
+    //     .duration(event.selection ? 750 : 0)
+    //     .call(brush.move, defaultExtent)
+    // }
+    // const width = 600,
+    //   height = 600,
+    //   data = Array.from({ length: 1000 }, () => [Math.random() * width, Math.random() * height]),
+    //   defaultExtent = [
+    //     [width * 0.1, width * 0.1],
+    //     [width * 0.3, width * 0.3],
+    //   ]
+    // const brush = d3
+    //   .brush()
+    //   .on('start brush', ({ selection }) => brushed(selection))
+    //   .on('end', brushended)
+    // const svg = d3.create('svg').attr('viewBox', [0, 0, width, height])
+    // const point = svg
+    //   .append('g')
+    //   .attr('fill', '#ccc')
+    //   .attr('stroke', '#777')
+    //   .selectAll('circle')
+    //   .data(data)
+    //   .join('circle')
+    //   .attr('cx', (d) => d[0])
+    //   .attr('cy', (d) => d[1])
+    //   .attr('r', 3.5)
+
+    // svg
+    //   .append('g')
+    //   .attr('class', 'brush-group')
+    //   .call(brush as any)
+    //   .call(brush.move as any, defaultExtent)
+
+    // document.querySelector('.test-d3')?.appendChild(svg.node())
+
+    const margin = {
+        top: 10,
+        right: 10,
+        bottom: 10,
+        left: 10,
+      },
+      width = 960 - margin.left - margin.right,
+      height = 500 - margin.top - margin.bottom
+
+    const svg = d3
+      .select('.test-d3')
+      .append('svg')
+      .attr('width', width + margin.left + margin.right)
+      .attr('height', height + margin.top + margin.bottom)
+      .append('g')
+      .attr('transform', `translate(${margin.left},${margin.top}`)
+
+    svg.append('rect').attr('class', 'grid-background').attr('width', width).attr('height', height)
+    const gBrushes = svg.append('g').attr('class', 'brushes')
+
+    const brushes: { id: number; brush: d3.BrushBehavior<any> }[] = []
+
+    function newBrush() {
+      const brush = d3.brush().on('end', brushend)
+
+      brushes.push({ id: brushes.length, brush })
+      function brushend() {
+        // Figure out if our latest brush has a selection
+        const lastBrushID = brushes[brushes.length - 1].id
+        const lastBrush = document.getElementById('brush-' + lastBrushID)
+
+        const selection = d3.brushSelection(lastBrush as any)
+
+        if (selection && selection[0] !== selection[1]) {
+          newBrush()
+        }
+
+        drawBrushes()
+      }
+    }
+
+    function drawBrushes() {
+      const brushSelection = gBrushes.selectAll('.brush').data(brushes, function (d: any) {
+        return d
+      })
+
+      // Set up new brushes
+      brushSelection.enter()
+    }
+  }, [isEdit])
+
   return (
     <Main>
       <div className="video-wrapper">
@@ -141,8 +242,9 @@ const Shortcut: React.FC = () => {
               console.log('test', videoRef.current && videoRef.current.duration)
               videoRef.current && (videoRef.current.currentTime = 5.7)
             }}>
-            test button
+            w: 0 ~ 100
           </button>
+          <button>w: 60 ~ 100</button>
 
           {/* <div className="tool-container" onMouseMove={onMouseMoveCursor}>
             <div className="scroll-wrap">
@@ -164,6 +266,7 @@ const Shortcut: React.FC = () => {
           </div> */}
         </div>
       )}
+      {isEdit && <div className="test-d3"></div>}
     </Main>
   )
 }
