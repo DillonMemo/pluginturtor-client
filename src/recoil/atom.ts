@@ -1,3 +1,4 @@
+import { Multer } from '../type'
 import { atom } from 'recoil'
 
 export const loadingState = atom<boolean>({
@@ -15,6 +16,7 @@ export type videoResource = {
   videoDataURI: string
   videoMimeType: string
   videoRef: React.MutableRefObject<HTMLVideoElement | undefined>
+  thumbnails: Multer.MulterFile[]
 }
 export const videoResourceState = atom<videoResource>({
   key: 'videoResource',
@@ -23,6 +25,7 @@ export const videoResourceState = atom<videoResource>({
     videoDataURI: '',
     videoMimeType: '',
     videoRef: { current: undefined },
+    thumbnails: [],
   },
 })
 

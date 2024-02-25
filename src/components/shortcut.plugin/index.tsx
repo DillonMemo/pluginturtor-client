@@ -12,10 +12,11 @@ import * as d3 from 'd3'
 
 const Shortcut: React.FC = () => {
   const [loading, setLoading] = useRecoilState(loadingState)
-  const [{ isEdit, videoDataURI, videoMimeType, videoRef }, setVideoResource] =
+  const [{ isEdit, videoDataURI, videoMimeType, videoRef, thumbnails }, setVideoResource] =
     useRecoilState(videoResourceState)
 
   const videoPreRef = useRef() as React.MutableRefObject<HTMLVideoElement>
+  const svgRef = useRef() as React.MutableRefObject<SVGSVGElement>
 
   const onFileUpload = useCallback(
     async ({ target: { files } }: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,9 +41,9 @@ const Shortcut: React.FC = () => {
             const {
               success,
               video,
+              thumbnails,
             }: { success: boolean; thumbnails: Multer.MulterFile[]; video: Multer.MulterFile } =
               await response.json()
-
             if (success) {
               const buffer = Buffer.from(video.buffer.data)
               const base64Data = buffer.toString('base64')
@@ -53,6 +54,7 @@ const Shortcut: React.FC = () => {
                 videoDataURI: `data:${video.mimetype};base64,${base64Data}`,
                 videoMimeType: video.mimetype,
                 videoRef: videoPreRef,
+                ...(thumbnails.length > 0 ? { thumbnails } : { thumbnails: [] }),
               }))
             }
           }
@@ -110,103 +112,60 @@ const Shortcut: React.FC = () => {
   //   }, [])
 
   useEffect(() => {
-    if (!isEdit) return
-    // function contains([[x0, y0], [x1, y1]]: number[][], [x, y]: number[]) {
-    //   return x >= x0 && x < x1 && y >= y0 && y < y1
-    // }
-    // function brushed(selection: any) {
-    //   point.attr('fill', selection && ((d) => (contains(selection, d) ? 'red' : null)))
-    // }
-    // function brushended(event: d3.D3BrushEvent<SVGElement>) {
-    //   if (!event.sourceEvent) return
-    //   const brushEl = document.querySelector('.brush-group')
-    //   console.log('1', defaultExtent, [[100,100],[200, 200]])
-    //   d3.select(brushEl)
-    //     .transition()
-    //     .delay(100)
-    //     .duration(event.selection ? 750 : 0)
-    //     .call(brush.move, defaultExtent)
-    // }
-    // const width = 600,
-    //   height = 600,
-    //   data = Array.from({ length: 1000 }, () => [Math.random() * width, Math.random() * height]),
-    //   defaultExtent = [
-    //     [width * 0.1, width * 0.1],
-    //     [width * 0.3, width * 0.3],
-    //   ]
-    // const brush = d3
-    //   .brush()
-    //   .on('start brush', ({ selection }) => brushed(selection))
-    //   .on('end', brushended)
-    // const svg = d3.create('svg').attr('viewBox', [0, 0, width, height])
-    // const point = svg
-    //   .append('g')
-    //   .attr('fill', '#ccc')
-    //   .attr('stroke', '#777')
-    //   .selectAll('circle')
-    //   .data(data)
-    //   .join('circle')
-    //   .attr('cx', (d) => d[0])
-    //   .attr('cy', (d) => d[1])
-    //   .attr('r', 3.5)
+    if (!isEdit || !svgRef.current) return
 
-    // svg
-    //   .append('g')
-    //   .attr('class', 'brush-group')
-    //   .call(brush as any)
-    //   .call(brush.move as any, defaultExtent)
-
-    // document.querySelector('.test-d3')?.appendChild(svg.node())
-
-    const margin = {
-        top: 10,
-        right: 10,
-        bottom: 10,
-        left: 10,
+    const layout = {
+      width: 300,
+      height: 300,
+      margin: {
+        top: 130,
+        bottom: 35,
+        left: 40,
+        right: 40,
       },
-      width = 960 - margin.left - margin.right,
-      height = 500 - margin.top - margin.bottom
-
-    const svg = d3
-      .select('.test-d3')
-      .append('svg')
-      .attr('width', width + margin.left + margin.right)
-      .attr('height', height + margin.top + margin.bottom)
-      .append('g')
-      .attr('transform', `translate(${margin.left},${margin.top}`)
-
-    svg.append('rect').attr('class', 'grid-background').attr('width', width).attr('height', height)
-    const gBrushes = svg.append('g').attr('class', 'brushes')
-
-    const brushes: { id: number; brush: d3.BrushBehavior<any> }[] = []
-
-    function newBrush() {
-      const brush = d3.brush().on('end', brushend)
-
-      brushes.push({ id: brushes.length, brush })
-      function brushend() {
-        // Figure out if our latest brush has a selection
-        const lastBrushID = brushes[brushes.length - 1].id
-        const lastBrush = document.getElementById('brush-' + lastBrushID)
-
-        const selection = d3.brushSelection(lastBrush as any)
-
-        if (selection && selection[0] !== selection[1]) {
-          newBrush()
-        }
-
-        drawBrushes()
-      }
     }
+    const range = [0, 13.96]
+    const starting_range = [0, 13.96]
+    const width = layout.width - layout.margin.left - layout.margin.right
+    const height = layout.height - layout.margin.top - layout.margin.bottom
 
-    function drawBrushes() {
-      const brushSelection = gBrushes.selectAll('.brush').data(brushes, function (d: any) {
-        return d
+    const xAxis = d3.scaleLinear().domain(range).range([0, width])
+    const svg = d3.select(svgRef.current)
+    const g = svg
+      .append('g')
+      .attr('transform', `translate(${layout.margin.left}, ${layout.margin.top}})`)
+
+    const brush = d3
+      .brushX()
+      .extent([
+        [0, 0],
+        [width, height],
+      ])
+      .on('brush', function () {
+        const s = d3.event.selection
+        // update and move labels
+        // labelL.attr('x', s[0])
+        //   .text((x.invert(s[0]).toFixed(2)))
+        // labelR.attr('x', s[1])
+        //   .text((x.invert(s[1]).toFixed(2)))
+        // move brush handles
+        handle.attr('display', null).attr('transform', function (d, i) {
+          return 'translate(' + [s[i], -height] + ')'
+        })
+        // update view
+        // if the view should only be updated after brushing is over,
+        // move these two lines into the on('end') part below
+        const node = svg.node()
+        if (node instanceof SVGSVGElement) {
+          node.nodeValue = s.map(function (d: any) {
+            const temp = x.invert(d)
+            return +temp.toFixed(2)
+          })
+          node.dispatchEvent(new CustomEvent('input'))
+        }
       })
 
-      // Set up new brushes
-      brushSelection.enter()
-    }
+    console.log(d3.select(svgRef.current))
   }, [isEdit])
 
   return (
@@ -237,14 +196,21 @@ const Shortcut: React.FC = () => {
       </div>
       {isEdit && (
         <div className="tool-wrapper">
-          <button
-            onClick={() => {
-              console.log('test', videoRef.current && videoRef.current.duration)
-              videoRef.current && (videoRef.current.currentTime = 5.7)
-            }}>
-            w: 0 ~ 100
-          </button>
-          <button>w: 60 ~ 100</button>
+          <div className="button-group">
+            <button
+              onClick={() => {
+                console.log('button 1', videoRef.current && videoRef.current.duration)
+                videoRef.current && (videoRef.current.currentTime = 5.7)
+              }}>
+              w: 0 ~ 100
+            </button>
+            <button
+              onClick={() => {
+                console.log('button 2')
+              }}>
+              w: 60 ~ 100
+            </button>
+          </div>
 
           {/* <div className="tool-container" onMouseMove={onMouseMoveCursor}>
             <div className="scroll-wrap">
@@ -266,7 +232,12 @@ const Shortcut: React.FC = () => {
           </div> */}
         </div>
       )}
-      {isEdit && <div className="test-d3"></div>}
+      {/* {isEdit && <div className="test-d3" style={{ opacity: 1 }}></div>} */}
+      {isEdit && (
+        <div className="test">
+          <svg ref={svgRef}></svg>
+        </div>
+      )}
     </Main>
   )
 }
