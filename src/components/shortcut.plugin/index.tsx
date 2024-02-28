@@ -1,21 +1,28 @@
 'use client'
 
+import { Multer, SliderArgs, SliderLayout } from '@/src/type'
 import React, { useCallback, useEffect, useRef } from 'react'
 import { loadingState, videoResourceState } from '@/src/recoil/atom'
-import CursorIconSvg from '@/src/lib/svgs/CursorIconSvg'
 import Loading from '../Loading'
-import { Multer } from '@/src/type'
-import { convertMillisecondsToTime } from '@/src/utils'
+import { slider } from '@/src/utils'
 import styled from 'styled-components'
 import { useRecoilState } from 'recoil'
-import * as d3 from 'd3'
 
 const Shortcut: React.FC = () => {
+  const layout: SliderLayout = {
+    width: 600,
+    height: 160,
+    margin: {
+      top: 30,
+      right: 20,
+      bottom: 30,
+      left: 20,
+    },
+  }
   const [loading, setLoading] = useRecoilState(loadingState)
-  const [{ isEdit, videoDataURI, videoMimeType, videoRef, thumbnails }, setVideoResource] =
-    useRecoilState(videoResourceState)
+  const [{ isEdit, thumbnails }, setVideoResource] = useRecoilState(videoResourceState)
 
-  const videoPreRef = useRef() as React.MutableRefObject<HTMLVideoElement>
+  const videoRef = useRef() as React.MutableRefObject<HTMLVideoElement>
   const svgRef = useRef() as React.MutableRefObject<SVGSVGElement>
 
   const onFileUpload = useCallback(
@@ -51,11 +58,13 @@ const Shortcut: React.FC = () => {
               setVideoResource((prev) => ({
                 ...prev,
                 isEdit: true,
-                videoDataURI: `data:${video.mimetype};base64,${base64Data}`,
-                videoMimeType: video.mimetype,
-                videoRef: videoPreRef,
                 ...(thumbnails.length > 0 ? { thumbnails } : { thumbnails: [] }),
               }))
+
+              const source = document.createElement('source')
+              source.type = video.mimetype
+              source.src = `data:${video.mimetype};base64,${base64Data}`
+              videoRef.current.appendChild(source)
             }
           }
         }
@@ -111,61 +120,22 @@ const Shortcut: React.FC = () => {
   //     return () => window.removeEventListener('mouseup', onMouseUpCursor)
   //   }, [])
 
-  useEffect(() => {
-    if (!isEdit || !svgRef.current) return
-
-    const layout = {
-      width: 300,
-      height: 300,
-      margin: {
-        top: 130,
-        bottom: 35,
-        left: 40,
-        right: 40,
-      },
+  const onLoadedMetadata = useCallback(() => {
+    const args: SliderArgs = {
+      layout,
+      min: 0,
+      max: videoRef.current.duration,
     }
-    const range = [0, 13.96]
-    const starting_range = [0, 13.96]
-    const width = layout.width - layout.margin.left - layout.margin.right
-    const height = layout.height - layout.margin.top - layout.margin.bottom
 
-    const xAxis = d3.scaleLinear().domain(range).range([0, width])
-    const svg = d3.select(svgRef.current)
-    const g = svg
-      .append('g')
-      .attr('transform', `translate(${layout.margin.left}, ${layout.margin.top}})`)
+    slider(svgRef, args, thumbnails)
+  }, [thumbnails])
 
-    const brush = d3
-      .brushX()
-      .extent([
-        [0, 0],
-        [width, height],
-      ])
-      .on('brush', function () {
-        const s = d3.event.selection
-        // update and move labels
-        // labelL.attr('x', s[0])
-        //   .text((x.invert(s[0]).toFixed(2)))
-        // labelR.attr('x', s[1])
-        //   .text((x.invert(s[1]).toFixed(2)))
-        // move brush handles
-        handle.attr('display', null).attr('transform', function (d, i) {
-          return 'translate(' + [s[i], -height] + ')'
-        })
-        // update view
-        // if the view should only be updated after brushing is over,
-        // move these two lines into the on('end') part below
-        const node = svg.node()
-        if (node instanceof SVGSVGElement) {
-          node.nodeValue = s.map(function (d: any) {
-            const temp = x.invert(d)
-            return +temp.toFixed(2)
-          })
-          node.dispatchEvent(new CustomEvent('input'))
-        }
-      })
+  useEffect(() => {
+    if (!isEdit || !svgRef.current || !videoRef.current) return
 
-    console.log(d3.select(svgRef.current))
+    videoRef.current.addEventListener('loadedmetadata', onLoadedMetadata)
+
+    return () => videoRef.current.removeEventListener('loadedmetadata', onLoadedMetadata)
   }, [isEdit])
 
   return (
@@ -189,8 +159,8 @@ const Shortcut: React.FC = () => {
           </UploadButton>
         </div>
         <div className={`video-container` + (isEdit ? '' : ' hidden')}>
-          <video ref={videoPreRef}>
-            {isEdit && <source src={videoDataURI} type={videoMimeType} />}
+          <video ref={videoRef} preload="metadata">
+            {/* {isEdit && <source src={videoDataURI} type={videoMimeType} />} */}
           </video>
         </div>
       </div>
@@ -232,9 +202,8 @@ const Shortcut: React.FC = () => {
           </div> */}
         </div>
       )}
-      {/* {isEdit && <div className="test-d3" style={{ opacity: 1 }}></div>} */}
       {isEdit && (
-        <div className="test">
+        <div style={{ width: layout.width, height: layout.height }}>
           <svg ref={svgRef}></svg>
         </div>
       )}

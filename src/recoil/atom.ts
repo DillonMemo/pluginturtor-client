@@ -13,18 +13,14 @@ export const loadingState = atom<boolean>({
 
 export type videoResource = {
   isEdit: boolean
-  videoDataURI: string
-  videoMimeType: string
-  videoRef: React.MutableRefObject<HTMLVideoElement | undefined>
+  // videoDataURI: string
+  // videoMimeType: string
   thumbnails: Multer.MulterFile[]
 }
 export const videoResourceState = atom<videoResource>({
   key: 'videoResource',
   default: {
     isEdit: false,
-    videoDataURI: '',
-    videoMimeType: '',
-    videoRef: { current: undefined },
     thumbnails: [],
   },
 })

@@ -1,4 +1,5 @@
 import * as d3 from 'd3'
+import { Multer, SliderArgs } from '../type'
 
 export const convertMillisecondsToTime = (time: number) => {
   // 총 밀리초 수 계산
@@ -16,6 +17,126 @@ export const convertMillisecondsToTime = (time: number) => {
   return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}:${String(milliseconds).padStart(2, '0')}`
 }
 
+/**
+ * create Element brush slider
+ * @return {SVGSVGElement | null}
+ */
+export const slider = (
+  ref: React.MutableRefObject<SVGSVGElement>,
+  { layout, min, max, starting_min = min, starting_max = max }: SliderArgs,
+  thumbnails: Multer.MulterFile[]
+): SVGSVGElement | null => {
+  const { width: initWidth, height: initHeight, margin } = layout
+
+  const range = [min, max]
+  const starting_range = [starting_min, starting_max]
+  const [width, height] = [
+    initWidth - margin.left - margin.right,
+    initHeight - margin.top - margin.bottom,
+  ]
+
+  const xAxis = d3.scaleLinear().domain(range).range([0, width])
+  const svg = d3.select(ref.current).attr('viewBox', `0, 0, ${initWidth}, ${initHeight}`)
+
+  const brush = d3
+    .brushX()
+    .extent([
+      [0, 0],
+      [width, height],
+    ])
+    .on('brush', function (event: d3.D3BrushEvent<SVGElement>) {
+      const selection = event.selection
+
+      if (!selection) return
+
+      // move brush handles
+      handle.attr('display', null).attr('transform', function (_, i: number) {
+        return `translate(${selection[i]}, ${-height})`
+      })
+
+      // update view
+      // if the view should only be updated after brushing is over,
+      // move these two lines into the on('end') part below
+      const node = svg.node()
+      if (node instanceof SVGSVGElement) {
+        // eslint-disable-next-line no-extra-semi
+        ;(node as any).value = selection.map<number>(function (d) {
+          const temp = typeof d === 'number' ? xAxis.invert(d) : 0
+          return +temp.toFixed(2)
+        })
+
+        node.dispatchEvent(new CustomEvent('input'))
+      }
+    })
+
+  const gBrush = svg
+    .append('g')
+    .attr('class', 'brush')
+    .attr('transform', `translate(${margin.left}, ${margin.top})`)
+
+  const gThumbnail = gBrush.append('g').attr('class', 'thumbnails')
+  const imageWidth = width / thumbnails.length
+  for (const index in thumbnails) {
+    const buffer = Buffer.from(thumbnails[index].buffer.data)
+    const blob = new Blob([buffer])
+    gThumbnail
+      .append('svg:image')
+      .attr('class', 'thumbnail')
+      .attr('width', `${imageWidth}`)
+      .attr('height', height)
+      .attr('x', `${imageWidth * +index}`)
+      .attr('y', '0')
+      .attr('preserveAspectRatio', 'xMidYMid slice')
+      .attr('xlink:href', URL.createObjectURL(blob))
+  }
+
+  gBrush.call(brush)
+
+  const brushResizePath = (data: { type: string }) => {
+    const e = +(data.type === 'e'),
+      x = e ? 1 : -1,
+      y = height
+
+    return `M${0.5 * x},${y}A6,6 0 0 ${e} ${6.5 * x},${y + 6}V${2 * y - 6}A6,6 0 0 ${e} ${0.5 * x},${2 * y}ZM${2.5 * x},${y + 8}V${2 * y - 8}M${4.5 * x},${y + 8}V${2 * y - 8}`
+  }
+
+  /** @description 좌우 양쪽끝 핸들 인터페이스 */
+  const handle = gBrush
+    .selectAll('.handle-custom')
+    .data([{ type: 'w' }, { type: 'e' }])
+    .enter()
+    .append('path')
+    .attr('class', 'handle-custom')
+    .attr('stroke', '#000')
+    .attr('fill', '#eee')
+    .attr('cursor', 'ew-resize')
+    .attr('d', brushResizePath)
+
+  const brushcentered = (event: React.MouseEvent) => {
+    const dx = xAxis(1) - xAxis(0),
+      cx = d3.pointer(event.target)[0]
+    const x0 = cx - dx / 2,
+      x1 = cx + dx / 2
+
+    d3.select((event.target as any).parentNode).call(
+      brush.move,
+      x1 > width ? [width - dx, width] : x0 < 0 ? [0, dx] : [x0, x1]
+    )
+  }
+
+  gBrush
+    .selectAll('.overlay')
+    .each(function (data: unknown) {
+      // eslint-disable-next-line no-extra-semi
+      ;(data as { type: string }).type = 'selection'
+    })
+    .on('mousedown touchstart', brushcentered)
+
+  // select entire range
+  gBrush.call(brush.move, (starting_range as any).map(xAxis))
+
+  return svg.node()
+}
 /**
  * @description
  * multiple brush example
@@ -50,15 +171,12 @@ export const D3BrushExample1 = () => {
     const brush = d3.brushX().on('end', brushend)
 
     brushes.push({ id: brushes.length, brush })
-    console.log('brushes', brushes)
     function brushend() {
       // Figure out if our latest brush has a selection
 
       const lastBrushID = brushes[brushes.length - 1].id
       const lastBrush = document.getElementById('brush-' + lastBrushID)
-      console.log('brush end 1', `brush-${lastBrushID}`, lastBrush)
       const selection = d3.brushSelection(lastBrush as any)
-      console.log('brush end 2', selection)
       if (selection) {
         selection[0] !== selection[1] && newBrush()
       }

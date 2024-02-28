@@ -31,3 +31,22 @@ export namespace Multer {
 }
 
 export type SVGProps = React.SVGProps<SVGSVGElement>
+
+export type SliderLayout = {
+  width: number
+  height: number
+  margin: {
+    top: number
+    right: number
+    bottom: number
+    left: number
+  }
+}
+
+export type SliderArgs = {
+  layout: SliderLayout
+  min: number
+  max: number
+  starting_min?: number
+  starting_max?: number
+}
