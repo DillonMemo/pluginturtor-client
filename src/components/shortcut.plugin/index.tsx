@@ -10,8 +10,8 @@ import { useRecoilState } from 'recoil'
 
 const Shortcut: React.FC = () => {
   const layout: SliderLayout = {
-    width: 600,
-    height: 160,
+    width: 700,
+    height: 140,
     margin: {
       top: 30,
       right: 20,
@@ -203,9 +203,25 @@ const Shortcut: React.FC = () => {
         </div>
       )}
       {isEdit && (
-        <div style={{ width: layout.width, height: layout.height }}>
-          <svg ref={svgRef}></svg>
-        </div>
+        <ToolWrapper layout={layout}>
+          <div className="tool-container">
+            <svg ref={svgRef}></svg>
+            <div className="cursor-control">
+              <div
+                className="cursor-group"
+                // onMouseDown={onMouseDownCursor}
+                // onMouseUp={onMouseUpCursor}
+              >
+                <div className="cursor-header">
+                  <CursorIconSvg />
+                </div>
+                <div className="cursor"></div>
+              </div>
+
+              <div className="time-indicator">00:00:00</div>
+            </div>
+          </div>
+        </ToolWrapper>
       )}
     </Main>
   )
@@ -241,9 +257,21 @@ export const Main = styled.main`
       }
     }
   }
+`
 
-  /* .tool-wrapper {
-     .tool-container {
+const ToolWrapper = styled.div<{ layout: SliderLayout }>`
+  width: ${({ layout }) => layout.width + 'px'};
+  height: ${({ layout }) => layout.height + 'px'};
+  .tool-container {
+    position: relative;
+    .cursor-control {
+      display: inline-block;
+      position: absolute;
+      top: ${({ layout }) => layout.margin.top - 18 + 'px'};
+      left: ${({ layout }) => layout.margin.left - 6 + 'px'};
+    }
+  }
+  /* .tool-container {
       min-width: 25rem;
       width: 100%;
       height: 10rem;
@@ -251,16 +279,6 @@ export const Main = styled.main`
       position: relative;
       border: 1px solid red;
 
-      .scroll-wrap {
-        display: block;
-        overflow: scroll hidden;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-
-        border: 1px solid lightblue;
-      }
       .cursor-control {
         position: relative;
 
@@ -272,7 +290,6 @@ export const Main = styled.main`
         .cursor-group {
           cursor: pointer;
           position: absolute;
-          top: -${EXPANDED_CURSOR_HEIGHT};
           width: ${CURSOR_WIDTH};
           height: calc(${CURSOR_HEIGHT} + ${EXPANDED_CURSOR_HEIGHT} + 1rem);
           .cursor {
@@ -291,8 +308,7 @@ export const Main = styled.main`
           left: -1.625rem;
         }
       }
-    } 
-  } */
+    } */
 `
 
 const UploadButton = styled.button`

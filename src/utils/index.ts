@@ -1,5 +1,6 @@
 import * as d3 from 'd3'
 import { Multer, SliderArgs } from '../type'
+import CursorIconSvg from '../lib/svgs/CursorIconSvg'
 
 export const convertMillisecondsToTime = (time: number) => {
   // 총 밀리초 수 계산
@@ -45,9 +46,14 @@ export const slider = (
       [width, height],
     ])
     .on('brush', function (event: d3.D3BrushEvent<SVGElement>) {
-      const selection = event.selection
+      const { selection } = event
 
       if (!selection) return
+
+      const hasUndefinedOrNull = selection.some(
+        (num) => num === undefined || (typeof num === 'number' && isNaN(num)) || num === null
+      )
+      if (hasUndefinedOrNull) return
 
       // move brush handles
       handle.attr('display', null).attr('transform', function (_, i: number) {
@@ -65,6 +71,8 @@ export const slider = (
           return +temp.toFixed(2)
         })
 
+        console.log(d3.select('.selection').attr('x'), node.value)
+
         node.dispatchEvent(new CustomEvent('input'))
       }
     })
@@ -74,7 +82,8 @@ export const slider = (
     .attr('class', 'brush')
     .attr('transform', `translate(${margin.left}, ${margin.top})`)
 
-  const gThumbnail = gBrush.append('g').attr('class', 'thumbnails')
+  // create thumbnail group
+  const gThumbnail = gBrush.append('g').attr('id', 'thumbnails')
   const imageWidth = width / thumbnails.length
   for (const index in thumbnails) {
     const buffer = Buffer.from(thumbnails[index].buffer.data)
@@ -97,7 +106,7 @@ export const slider = (
       x = e ? 1 : -1,
       y = height
 
-    return `M${0.5 * x},${y}A6,6 0 0 ${e} ${6.5 * x},${y + 6}V${2 * y - 6}A6,6 0 0 ${e} ${0.5 * x},${2 * y}ZM${2.5 * x},${y + 8}V${2 * y - 8}M${4.5 * x},${y + 8}V${2 * y - 8}`
+    return `M${0.5 * x},${y}A6,6 0 0 ${e} ${6.5 * x},${y + 6}V${2 * y - 6}A6,6 0 0 ${e} ${0.5 * x},${2 * y}ZM${2.5 * x},${Math.floor(y + y / 3)}V${Math.floor(y + y / 1.5)}M${4.5 * x},${Math.floor(y + y / 3)}V${Math.floor(y + y / 1.5)}`
   }
 
   /** @description 좌우 양쪽끝 핸들 인터페이스 */
@@ -114,10 +123,11 @@ export const slider = (
 
   const brushcentered = (event: React.MouseEvent) => {
     const dx = xAxis(1) - xAxis(0),
-      cx = d3.pointer(event.target)[0]
+      cx = d3.pointer(event)[0]
     const x0 = cx - dx / 2,
       x1 = cx + dx / 2
 
+    console.log('brushcentered')
     d3.select((event.target as any).parentNode).call(
       brush.move,
       x1 > width ? [width - dx, width] : x0 < 0 ? [0, dx] : [x0, x1]
@@ -136,148 +146,4 @@ export const slider = (
   gBrush.call(brush.move, (starting_range as any).map(xAxis))
 
   return svg.node()
-}
-/**
- * @description
- * multiple brush example
- * 1. 처음 브러쉬는 전체를 Focus 한다.
- * 2. 더블클릭시 Focus한 브러쉬는 해제되어야 한다.
- * 3.
- */
-export const D3BrushExample1 = () => {
-  const margin = {
-      top: 10,
-      right: 10,
-      bottom: 10,
-      left: 10,
-    },
-    width = 960 - margin.left - margin.right,
-    height = 500 - margin.top - margin.bottom
-
-  const svg = d3
-    .select('.test-d3')
-    .append('svg')
-    .attr('width', width + margin.left + margin.right)
-    .attr('height', height + margin.top + margin.bottom)
-    .append('g')
-    .attr('transform', `translate(${margin.left},${margin.top})`)
-
-  svg.append('rect').attr('class', 'grid-background').attr('width', width).attr('height', height)
-  const gBrushes = svg.append('g').attr('class', 'brushes')
-
-  const brushes: { id: number; brush: d3.BrushBehavior<any> }[] = []
-
-  function newBrush() {
-    const brush = d3.brushX().on('end', brushend)
-
-    brushes.push({ id: brushes.length, brush })
-    function brushend() {
-      // Figure out if our latest brush has a selection
-
-      const lastBrushID = brushes[brushes.length - 1].id
-      const lastBrush = document.getElementById('brush-' + lastBrushID)
-      const selection = d3.brushSelection(lastBrush as any)
-      if (selection) {
-        selection[0] !== selection[1] && newBrush()
-      }
-
-      drawBrushes()
-    }
-  }
-
-  function drawBrushes() {
-    const brushSelection = gBrushes.selectAll('.brush').data(brushes, function (d: any) {
-      return d
-    })
-
-    // Set up new brushes
-    brushSelection
-      .enter()
-      .insert('g', '.brush')
-      .attr('class', 'brush')
-      .attr('id', function (brush) {
-        const isElementById = `brush-${brush.id}`
-
-        return isElementById
-      })
-      .each(function (brushObject) {
-        //call the brush
-        brushObject.brush(d3.select(this))
-      })
-
-    brushSelection.each(function (brushObject) {
-      d3.select(this)
-        .attr('class', 'brush')
-        .selectAll('.overlay')
-        .style('pointer-events', function () {
-          const brush = brushObject.brush
-          if (brushObject.id === brushes.length - 1 && brush !== undefined) {
-            return 'all'
-          } else {
-            return 'none'
-          }
-        })
-    })
-  }
-
-  newBrush()
-  drawBrushes()
-}
-
-/** @description example d3-brush */
-export const D3BrushExample2 = () => {
-  function contains([[x0, y0], [x1, y1]]: number[][], [x, y]: number[]) {
-    return x >= x0 && x < x1 && y >= y0 && y < y1
-  }
-  function brushed(selection: any) {
-    point.attr('fill', selection && ((d) => (contains(selection, d) ? 'red' : null)))
-  }
-  function brushended(event: d3.D3BrushEvent<SVGElement>) {
-    if (!event.sourceEvent) return
-    const brushEl = document.querySelector('.brush-group')
-    d3.select(brushEl)
-      .transition()
-      .delay(100)
-      .duration(event.selection ? 750 : 0)
-      .call(brush.move as any, defaultExtent)
-  }
-  const width = 600,
-    height = 600,
-    data = Array.from({ length: 1000 }, () => [Math.random() * width, Math.random() * height]),
-    defaultExtent = [
-      [width * 0.1, width * 0.1],
-      [width * 0.3, width * 0.3],
-    ]
-  const brush = d3
-    .brush()
-    .on('start brush', ({ selection }) => brushed(selection))
-    .on('end', brushended)
-  const svg = d3.create('svg').attr('viewBox', [0, 0, width, height])
-  const point = svg
-    .append('g')
-    .attr('fill', '#ccc')
-    .attr('stroke', '#777')
-    .selectAll('circle')
-    .data(data)
-    .join('circle')
-    .attr('cx', (d) => d[0])
-    .attr('cy', (d) => d[1])
-    .attr('r', 3.5)
-
-  svg
-    .append('g')
-    .attr('class', 'brush-group')
-    .call(brush as any)
-    .call(brush.move as any, defaultExtent)
-
-  const containerNode = document.querySelector('.test-d3')
-  if (containerNode instanceof HTMLDivElement) {
-    containerNode.style.cssText = `
-        ${containerNode.style.cssText}
-        width: 500px;
-        height: 300px;
-      `
-    const svgNode = svg.node()
-    svgNode && containerNode.appendChild(svgNode)
-  }
 }
