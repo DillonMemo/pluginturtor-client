@@ -1,16 +1,28 @@
 'use client'
 
-import { Multer, SliderArgs, SliderLayout } from '@/src/type'
+import { CustomVideoElement, Multer, SliderArgs, SliderLayout } from '@/src/type'
 import React, { useCallback, useEffect, useRef } from 'react'
-import { loadingState, videoResourceState } from '@/src/recoil/atom'
+import { cursorPointState, loadingState, videoResourceState } from '@/src/recoil/atom'
+import { findClosestRatio, slider } from '@/src/utils'
+import CursorIconSvg from '@/src/lib/svgs/CursorIconSvg'
 import Loading from '../Loading'
-import { slider } from '@/src/utils'
 import styled from 'styled-components'
 import { useRecoilState } from 'recoil'
 
 const Shortcut: React.FC = () => {
+  const [loading, setLoading] = useRecoilState(loadingState)
+  const [{ isEdit, thumbnails }, setVideoResource] = useRecoilState(videoResourceState)
+  const [cursorPoint, setCursorPoint] = useRecoilState(cursorPointState)
+
+  const videoRef = useRef() as React.MutableRefObject<CustomVideoElement>
+  const svgRef = useRef() as React.MutableRefObject<SVGSVGElement>
+  const mainRef = useRef() as React.MutableRefObject<HTMLElement>
+
   const layout: SliderLayout = {
-    width: 700,
+    width:
+      mainRef.current && mainRef.current instanceof HTMLElement
+        ? Math.min(mainRef.current.offsetWidth, 800)
+        : 600,
     height: 140,
     margin: {
       top: 30,
@@ -19,11 +31,6 @@ const Shortcut: React.FC = () => {
       left: 20,
     },
   }
-  const [loading, setLoading] = useRecoilState(loadingState)
-  const [{ isEdit, thumbnails }, setVideoResource] = useRecoilState(videoResourceState)
-
-  const videoRef = useRef() as React.MutableRefObject<HTMLVideoElement>
-  const svgRef = useRef() as React.MutableRefObject<SVGSVGElement>
 
   const onFileUpload = useCallback(
     async ({ target: { files } }: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,13 +128,16 @@ const Shortcut: React.FC = () => {
   //   }, [])
 
   const onLoadedMetadata = useCallback(() => {
+    const { duration, videoWidth, videoHeight } = videoRef.current
     const args: SliderArgs = {
       layout,
       min: 0,
-      max: videoRef.current.duration,
+      max: duration,
     }
 
-    slider(svgRef, args, thumbnails)
+    videoRef.current.style.aspectRatio = findClosestRatio(videoWidth, videoHeight)
+
+    slider(svgRef, args, thumbnails, setCursorPoint)
   }, [thumbnails])
 
   useEffect(() => {
@@ -139,7 +149,7 @@ const Shortcut: React.FC = () => {
   }, [isEdit])
 
   return (
-    <Main>
+    <Main ref={mainRef}>
       <div className="video-wrapper">
         <div className={`upload-container` + (isEdit ? ' hidden' : '')}>
           {/* video file type must be MP4 */}
@@ -174,48 +184,31 @@ const Shortcut: React.FC = () => {
               }}>
               w: 0 ~ 100
             </button>
+            &nbsp;
             <button
               onClick={() => {
                 console.log('button 2')
               }}>
-              w: 60 ~ 100
+              t: {cursorPoint.position.join(',')} | {cursorPoint.time.join(',')}
             </button>
           </div>
-
-          {/* <div className="tool-container" onMouseMove={onMouseMoveCursor}>
-            <div className="scroll-wrap">
-              <div className="axis-container"></div>
-            </div>
-            <div className="cursor-control">
-              <div
-                className="cursor-group"
-                onMouseDown={onMouseDownCursor}
-                onMouseUp={onMouseUpCursor}>
-                <div className="cursor-header">
-                  <CursorIconSvg />
-                </div>
-                <div className="cursor"></div>
-              </div>
-
-              <div className="time-indicator">00:00:00</div>
-            </div>
-          </div> */}
         </div>
       )}
       {isEdit && (
         <ToolWrapper layout={layout}>
           <div className="tool-container">
             <svg ref={svgRef}></svg>
-            <div className="cursor-control">
+            <div
+              className="cursor-control"
+              {...{ style: { transform: `translate(${cursorPoint.position[0]}px, 0px)` } }}>
               <div
                 className="cursor-group"
                 // onMouseDown={onMouseDownCursor}
                 // onMouseUp={onMouseUpCursor}
               >
-                <div className="cursor-header">
+                <div className="cursor-pointer" onMouseDown={() => console.log('header')}>
                   <CursorIconSvg />
                 </div>
-                <div className="cursor"></div>
               </div>
 
               <div className="time-indicator">00:00:00</div>
@@ -227,9 +220,6 @@ const Shortcut: React.FC = () => {
   )
 }
 
-// const CURSOR_WIDTH = '0.75rem'
-// const CURSOR_HEIGHT = '5rem'
-// const EXPANDED_CURSOR_HEIGHT = '1rem'
 export const Main = styled.main`
   outline: none;
 
@@ -251,9 +241,10 @@ export const Main = styled.main`
 
     .video-container {
       video {
-        width: 16.25rem;
-        height: 100%;
-        object-fit: cover;
+        max-width: 30rem;
+        max-height: 25rem;
+        aspect-ratio: 1;
+        object-fit: contain;
       }
     }
   }
@@ -267,48 +258,36 @@ const ToolWrapper = styled.div<{ layout: SliderLayout }>`
     .cursor-control {
       display: inline-block;
       position: absolute;
-      top: ${({ layout }) => layout.margin.top - 18 + 'px'};
+      bottom: 0;
       left: ${({ layout }) => layout.margin.left - 6 + 'px'};
-    }
-  }
-  /* .tool-container {
-      min-width: 25rem;
-      width: 100%;
-      height: 10rem;
 
-      position: relative;
-      border: 1px solid red;
+      .cursor-group {
+        z-index: 1;
 
-      .cursor-control {
-        position: relative;
+        width: 0.75rem;
+        cursor: ew-resize;
+        position: absolute;
 
-        user-select: none;
-        width: 100%;
+        .cursor-pointer {
+          transform: rotateX(180deg);
 
-        border: 1px solid lightgreen;
-        color: orange;
-        .cursor-group {
-          cursor: pointer;
-          position: absolute;
-          width: ${CURSOR_WIDTH};
-          height: calc(${CURSOR_HEIGHT} + ${EXPANDED_CURSOR_HEIGHT} + 1rem);
-          .cursor {
-            background-color: orange;
-            position: relative;
-            left: 5px;
-            top: -1px;
-            width: 0.125rem;
-            height: calc(100% - 17px);
+          &:active,
+          &:focus {
+            svg {
+              fill: currentColor;
+            }
           }
         }
-        .time-indicator {
-          display: inline-block;
-          position: relative;
-          top: calc(${CURSOR_HEIGHT} + 1.25rem);
-          left: -1.625rem;
-        }
       }
-    } */
+      .time-indicator {
+        user-select: none;
+        display: inline-block;
+        position: relative;
+        bottom: -1.125rem;
+        left: -1.625rem;
+      }
+    }
+  }
 `
 
 const UploadButton = styled.button`

@@ -50,3 +50,5 @@ export type SliderArgs = {
   starting_min?: number
   starting_max?: number
 }
+
+export type CustomVideoElement = HTMLVideoElement

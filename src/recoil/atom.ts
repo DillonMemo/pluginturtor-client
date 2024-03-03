@@ -29,3 +29,12 @@ export const videoElementState = atom<React.MutableRefObject<HTMLVideoElement>>(
   key: 'videoElement',
   default: undefined,
 })
+
+export type CursorPointType = { time: number[]; position: number[] }
+export const cursorPointState = atom<CursorPointType>({
+  key: 'cursorPoint',
+  default: {
+    time: [0, 0],
+    position: [0, 0],
+  },
+})
