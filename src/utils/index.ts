@@ -167,8 +167,8 @@ export const slider = (
   const brushcentered = (event: React.MouseEvent) => {
     const dx = xAxis(1) - xAxis(0),
       cx = d3.pointer(event)[0]
-    const x0 = cx - dx / 2,
-      x1 = cx + dx / 2
+    const x0 = +(cx - dx / 2).toFixed(2),
+      x1 = +(cx + dx / 2).toFixed(2)
 
     d3.select((event.target as any).parentNode).call(
       brush.move,
