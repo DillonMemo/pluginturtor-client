@@ -1,10 +1,10 @@
 'use client'
 
+import * as d3 from 'd3'
 import { CustomVideoElement, Multer, SliderArgs, SliderLayout } from '@/src/type'
 import React, { useCallback, useEffect, useRef } from 'react'
 import { cursorPointState, loadingState, videoResourceState } from '@/src/recoil/atom'
 import { findClosestRatio, slider } from '@/src/utils'
-import CursorIconSvg from '@/src/lib/svgs/CursorIconSvg'
 import Loading from '../Loading'
 import styled from 'styled-components'
 import { useRecoilState } from 'recoil'
@@ -24,6 +24,7 @@ const Shortcut: React.FC = () => {
         ? Math.min(mainRef.current.offsetWidth, 800)
         : 600,
     height: 140,
+    expandHeight: 2,
     margin: {
       top: 30,
       right: 20,
@@ -148,6 +149,39 @@ const Shortcut: React.FC = () => {
     return () => videoRef.current.removeEventListener('loadedmetadata', onLoadedMetadata)
   }, [isEdit])
 
+  useEffect(() => {
+    /** @deprecated */
+    // if (!isEdit || !svgRef.current || !videoRef.current) return
+    // const cursor = d3.select(svgRef.current).select<SVGGElement>('.cursor')
+    // const cursorNode = cursor.node()
+    // if (cursorNode instanceof SVGGElement) {
+    //   const { position, time } = cursorPoint
+    //   const { width, height } = cursorNode.getBoundingClientRect()
+    //   const [translateX, translateY] = [
+    //     position[0] + Math.floor(layout.margin.left - width / 2),
+    //     Math.floor(layout.margin.top - (height + layout.expandHeight)),
+    //   ]
+    //   cursorNode.setAttribute('transform', `translate(${translateX}, ${translateY})`)
+    //   cursor
+    //     .on('mousedown', function (_: d3.ClientPointEvent) {
+    //       this.classList.add('active')
+    //     })
+    //     .on('mouseup', function (_: d3.ClientPointEvent) {
+    //       this.classList.remove('active')
+    //     })
+    //     .on('mousemove', function (event: d3.ClientPointEvent) {
+    //       if (!this.classList.contains('active')) return
+    //       const container = document.querySelector('.tool-container')
+    //       if (!(container instanceof HTMLDivElement)) return
+    //       const { clientX } = event
+    //       const moveX = clientX - container.getBoundingClientRect().left
+    //       console.log('mousemove', clientX, moveX)
+    //       cursorNode.setAttribute('transform', `translate(${moveX}, ${translateY})`)
+    //       // const position = clientX - container.getBoundingClientRect().left
+    //     })
+    // }
+  }, [isEdit, cursorPoint])
+
   return (
     <Main ref={mainRef}>
       <div className="video-wrapper">
@@ -189,7 +223,9 @@ const Shortcut: React.FC = () => {
               onClick={() => {
                 console.log('button 2')
               }}>
-              t: {cursorPoint.position.join(',')} | {cursorPoint.time.join(',')}
+              position: {cursorPoint.position.join(',')}
+              <br />
+              time: {cursorPoint.time.join(',')}
             </button>
           </div>
         </div>
@@ -198,7 +234,7 @@ const Shortcut: React.FC = () => {
         <ToolWrapper layout={layout}>
           <div className="tool-container">
             <svg ref={svgRef}></svg>
-            <div
+            {/* <div
               className="cursor-control"
               {...{ style: { transform: `translate(${cursorPoint.position[0]}px, 0px)` } }}>
               <div
@@ -212,7 +248,7 @@ const Shortcut: React.FC = () => {
               </div>
 
               <div className="time-indicator">00:00:00</div>
-            </div>
+            </div> */}
           </div>
         </ToolWrapper>
       )}
@@ -255,38 +291,6 @@ const ToolWrapper = styled.div<{ layout: SliderLayout }>`
   height: ${({ layout }) => layout.height + 'px'};
   .tool-container {
     position: relative;
-    .cursor-control {
-      display: inline-block;
-      position: absolute;
-      bottom: 0;
-      left: ${({ layout }) => layout.margin.left - 6 + 'px'};
-
-      .cursor-group {
-        z-index: 1;
-
-        width: 0.75rem;
-        cursor: ew-resize;
-        position: absolute;
-
-        .cursor-pointer {
-          transform: rotateX(180deg);
-
-          &:active,
-          &:focus {
-            svg {
-              fill: currentColor;
-            }
-          }
-        }
-      }
-      .time-indicator {
-        user-select: none;
-        display: inline-block;
-        position: relative;
-        bottom: -1.125rem;
-        left: -1.625rem;
-      }
-    }
   }
 `
 

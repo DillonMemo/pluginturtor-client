@@ -1,8 +1,7 @@
 import * as d3 from 'd3'
-import { Multer, SliderArgs } from '../type'
+import { Multer, SliderArgs, SliderLayout } from '../type'
 import { CursorPointType } from '../recoil/atom'
 import { SetterOrUpdater } from 'recoil'
-import { isNumber } from 'lodash'
 
 export const convertMillisecondsToTime = (time: number) => {
   // 총 밀리초 수 계산
@@ -57,8 +56,8 @@ export const slider = (
   { layout, min, max, starting_min = min, starting_max = max }: SliderArgs,
   thumbnails: Multer.MulterFile[],
   setCursorPoint: SetterOrUpdater<CursorPointType>
-): SVGSVGElement | null => {
-  const { width: initWidth, height: initHeight, margin } = layout
+): void => {
+  const { width: initWidth, height: initHeight, margin, expandHeight } = layout
 
   const stroke = '#000'
   const range = [min, max]
@@ -69,7 +68,20 @@ export const slider = (
   ]
 
   const xAxis = d3.scaleLinear().domain(range).range([0, width])
-  const svg = d3.select(ref.current).attr('viewBox', `0, 0, ${initWidth}, ${initHeight}`)
+  const svg = d3
+    .select(ref.current)
+    .attr('viewBox', `0, 0, ${initWidth}, ${initHeight}`)
+    .attr('id', 'tool-content')
+
+  // create cursor group
+  drawCursor({ expandHeight })
+  // create brush group
+  const gBrush = svg
+    .append('g')
+    .attr('class', 'brush')
+    .attr('transform', `translate(${margin.left}, ${margin.top})`)
+  // create thumbnail group
+  const gThumbnail = gBrush.append('g').attr('id', 'thumbnails')
 
   const brush = d3
     .brushX()
@@ -93,25 +105,25 @@ export const slider = (
       // update view
       // if the view should only be updated after brushing is over,
       // move these two lines into the on('end') part below
-      const node = svg.node()
-      if (node instanceof SVGSVGElement) {
+      const svgNode = svg.node()
+      if (svgNode instanceof SVGSVGElement) {
         const timeValue = selection.map<number>(function (d) {
           const temp = typeof d === 'number' ? xAxis.invert(d) : 0
           return +temp.toFixed(2)
         })
 
-        isNumber(+selection[0]) &&
-          setCursorPoint((prev) => ({
-            ...prev,
-            position: selection as number[],
-            time: timeValue,
-          }))
+        setCursorPoint((prev) => ({
+          ...prev,
+          position: selection as number[],
+          time: timeValue,
+        }))
 
-        node.dispatchEvent(new CustomEvent('input'))
+        svgNode.dispatchEvent(new CustomEvent('input'))
       }
     })
     .on('end', function (event: d3.D3BrushEvent<SVGElement>) {
       const { selection } = event
+
       if (!selection) {
         const [mx] = d3.pointer(event, this)
         const calc = mx > width ? width : Math.max(mx, 10)
@@ -120,13 +132,6 @@ export const slider = (
       }
     })
 
-  const gBrush = svg
-    .append('g')
-    .attr('class', 'brush')
-    .attr('transform', `translate(${margin.left}, ${margin.top})`)
-
-  // create thumbnail group
-  const gThumbnail = gBrush.append('g').attr('id', 'thumbnails')
   const imageWidth = width / thumbnails.length
   for (const index in thumbnails) {
     const buffer = Buffer.from(thumbnails[index].buffer.data)
@@ -187,6 +192,18 @@ export const slider = (
   gBrush.select('.selection').attr('stroke', stroke)
   // select entire range
   gBrush.call(brush.move, (starting_range as any).map(xAxis))
+}
 
-  return svg.node()
+export const drawCursor = ({ expandHeight }: Pick<SliderLayout, 'expandHeight'>) => {
+  const cursorPath = () =>
+    `M0 3C0 1.34314 1.34315 0 3 0H9C10.6569 0 12 1.34315 12 3V11.8287C12 12.7494 11.5772 13.6191 10.8531 14.1879L6 18L1.14686 14.1879C0.422795 13.6191 0 12.7494 0 11.8287V3Z`
+  const svg = d3.select('#tool-content')
+  const gCursor = svg.append('g').attr('cursor', 'ew-resize').attr('class', 'cursor')
+
+  gCursor
+    .append('path')
+    .attr('stroke', 'white')
+    .attr('stroke-width', `${expandHeight}`)
+    .attr('fill', 'red')
+    .attr('d', cursorPath)
 }

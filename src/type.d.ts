@@ -35,6 +35,7 @@ export type SVGProps = React.SVGProps<SVGSVGElement>
 export type SliderLayout = {
   width: number
   height: number
+  expandHeight: number
   margin: {
     top: number
     right: number
