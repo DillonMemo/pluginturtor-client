@@ -1,23 +1,6 @@
 import * as d3 from 'd3'
-import { Multer, SliderArgs, SliderLayout } from '../type'
-import { CursorPointType } from '../recoil/atom'
-import { SetterOrUpdater } from 'recoil'
-
-export const convertMillisecondsToTime = (time: number) => {
-  // 총 밀리초 수 계산
-  const totalMilliseconds = time * 1000
-  // 분 계산
-  const minutes = Math.floor(totalMilliseconds / 60000)
-  // 남은 밀리초 수 계산
-  const remainingMilliseconds = totalMilliseconds % 60000
-  // 초 계산
-  const remainingSeconds = Math.floor(remainingMilliseconds / 1000)
-  // 밀리초 계산
-  const milliseconds = Math.round((remainingMilliseconds % 1000) / 10)
-
-  // 시:분:초 형식으로 반환
-  return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}:${String(milliseconds).padStart(2, '0')}`
-}
+import { CustomVideoElement, Multer, SliderArgs, SliderLayout } from '../type'
+import { isNumber } from 'lodash'
 
 /**
  * Find the closest aspect ratio based on width and height.
@@ -53,11 +36,11 @@ export const findClosestRatio = (width: number, height: number) => {
  */
 export const slider = (
   ref: React.MutableRefObject<SVGSVGElement>,
+  videoRef: React.MutableRefObject<CustomVideoElement>,
   { layout, min, max, starting_min = min, starting_max = max }: SliderArgs,
-  thumbnails: Multer.MulterFile[],
-  setCursorPoint: SetterOrUpdater<CursorPointType>
+  thumbnails: Multer.MulterFile[]
 ): void => {
-  const { width: initWidth, height: initHeight, margin, expandHeight } = layout
+  const { width: initWidth, height: initHeight, margin } = layout
 
   const stroke = '#000'
   const range = [min, max]
@@ -67,19 +50,20 @@ export const slider = (
     initHeight - margin.top - margin.bottom,
   ]
 
-  const xAxis = d3.scaleLinear().domain(range).range([0, width])
+  const xScale = d3.scaleLinear().domain(range).range([0, width])
   const svg = d3
     .select(ref.current)
     .attr('viewBox', `0, 0, ${initWidth}, ${initHeight}`)
     .attr('id', 'tool-content')
 
   // create cursor group
-  drawCursor({ expandHeight })
+  const gCursor = drawCursor(layout, xScale, videoRef)
   // create brush group
   const gBrush = svg
     .append('g')
     .attr('class', 'brush')
     .attr('transform', `translate(${margin.left}, ${margin.top})`)
+
   // create thumbnail group
   const gThumbnail = gBrush.append('g').attr('id', 'thumbnails')
 
@@ -103,22 +87,34 @@ export const slider = (
       })
 
       // update view
-      // if the view should only be updated after brushing is over,
-      // move these two lines into the on('end') part below
-      const svgNode = svg.node()
-      if (svgNode instanceof SVGSVGElement) {
-        const timeValue = selection.map<number>(function (d) {
-          const temp = typeof d === 'number' ? xAxis.invert(d) : 0
-          return +temp.toFixed(2)
-        })
+      const gCursorNode = gCursor.node()
 
-        setCursorPoint((prev) => ({
-          ...prev,
-          position: selection as number[],
-          time: timeValue,
-        }))
+      if (gCursorNode instanceof SVGGElement) {
+        /** 커서 너비, 높이 */
+        const { width: gCursorWidth, height: gCursorHeight } = gCursorNode.getBoundingClientRect()
+        /** [기본 X축, 기본 Y축] */
+        const [defaultX, defaultY] = [
+          Math.floor(margin.left - gCursorWidth / 2),
+          Math.floor(margin.top - (gCursorHeight + layout.expandHeight)),
+        ]
+        /** 이동된 X축 */
+        const curX = +selection[0] + defaultX
+        /** 이전 X축 */
+        const prevX = +gCursor.attr('x')
 
-        svgNode.dispatchEvent(new CustomEvent('input'))
+        /** [시작시간, 종료시간] */
+        const timeRange = getTimeRange(selection, xScale)
+
+        if (
+          isNumber(prevX) &&
+          (prevX < +selection[0] + defaultX || prevX > +selection[1] + defaultX)
+        ) {
+          gCursor.attr('transform', `translate(${curX}, ${defaultY})`).attr('x', curX)
+          videoRef.current.currentTime = timeRange[0]
+        }
+
+        videoRef.current.timeRange = timeRange
+        videoRef.current.positionRange = selection as number[]
       }
     })
     .on('end', function (event: d3.D3BrushEvent<SVGElement>) {
@@ -170,7 +166,7 @@ export const slider = (
     .attr('d', brushResizePath)
 
   const brushcentered = (event: React.MouseEvent) => {
-    const dx = xAxis(1) - xAxis(0),
+    const dx = xScale(1) - xScale(0),
       cx = d3.pointer(event)[0]
     const x0 = +(cx - dx / 2).toFixed(2),
       x1 = +(cx + dx / 2).toFixed(2)
@@ -191,19 +187,76 @@ export const slider = (
 
   gBrush.select('.selection').attr('stroke', stroke)
   // select entire range
-  gBrush.call(brush.move, (starting_range as any).map(xAxis))
+  gBrush.call(brush.move, (starting_range as any).map(xScale))
 }
 
-export const drawCursor = ({ expandHeight }: Pick<SliderLayout, 'expandHeight'>) => {
+/**
+ * 커서 생성
+ * @param {SliderLayout} layout 레이아웃
+ * @param {d3.ScaleLinear<number, number, never>} xAxis x축
+ * @returns {d3.Selection<SVGGElement, unknown, HTMLElement, any>}
+ */
+export const drawCursor = (
+  { expandHeight, margin }: SliderLayout,
+  xScale: d3.ScaleLinear<number, number, never>,
+  videoRef: React.MutableRefObject<CustomVideoElement>
+) => {
   const cursorPath = () =>
     `M0 3C0 1.34314 1.34315 0 3 0H9C10.6569 0 12 1.34315 12 3V11.8287C12 12.7494 11.5772 13.6191 10.8531 14.1879L6 18L1.14686 14.1879C0.422795 13.6191 0 12.7494 0 11.8287V3Z`
   const svg = d3.select('#tool-content')
-  const gCursor = svg.append('g').attr('cursor', 'ew-resize').attr('class', 'cursor')
-
-  gCursor
-    .append('path')
-    .attr('stroke', 'white')
+  const gCursor = svg
+    .append('g')
+    .attr('cursor', 'ew-resize')
+    .attr('class', 'cursor')
+    .attr('stroke', 'black')
     .attr('stroke-width', `${expandHeight}`)
-    .attr('fill', 'red')
-    .attr('d', cursorPath)
+    .attr('fill', 'white')
+
+  gCursor.append('path').attr('d', cursorPath)
+
+  const drag = d3
+    .drag()
+    .on('start', function () {
+      d3.select(this).attr('fill', 'black')
+    })
+    .on(
+      'drag',
+      function (event: d3.D3DragEvent<SVGGElement, d3.SimulationNodeDatum, d3.SubjectPosition>) {
+        const gBrush = document.querySelector('.brush')
+        if (gBrush instanceof SVGGElement) {
+          const selection = d3.brushSelection(gBrush)
+          if (!selection) return
+
+          const { width, height } = this.getBoundingClientRect()
+          const [defaultX, defaultY] = [
+            Math.floor(margin.left - width / 2),
+            Math.floor(margin.top - (height + expandHeight)),
+          ]
+          const cx = Math.floor(event.x)
+
+          if (cx < +selection[0] + defaultX || cx > +selection[1] + defaultX) return
+          const curTime = getTimeRange([cx - defaultX, +selection[1]], xScale)[0]
+          d3.select(this).raise().attr('transform', `translate(${cx}, ${defaultY})`).attr('x', cx)
+          videoRef.current.currentTime = curTime
+        }
+      }
+    )
+    .on('end', function () {
+      d3.select(this).attr('fill', 'white')
+    })
+
+  gCursor.call(drag as any).on('click', function (event, _) {
+    if (event.preventDefault) return
+  })
+
+  return gCursor
 }
+
+const getTimeRange = (
+  selection: d3.BrushSelection,
+  xScale: d3.ScaleLinear<number, number, never>
+) =>
+  selection.map<number>(function (d) {
+    const temp = typeof d === 'number' ? xScale.invert(d) : 0
+    return +temp.toFixed(2)
+  })

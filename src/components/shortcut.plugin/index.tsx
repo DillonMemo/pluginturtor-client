@@ -3,25 +3,25 @@
 import * as d3 from 'd3'
 import { CustomVideoElement, Multer, SliderArgs, SliderLayout } from '@/src/type'
 import React, { useCallback, useEffect, useRef } from 'react'
-import { cursorPointState, loadingState, videoResourceState } from '@/src/recoil/atom'
 import { findClosestRatio, slider } from '@/src/utils'
+import { loadingState, videoResourceState } from '@/src/recoil/atom'
 import Loading from '../Loading'
+import VideoControl from './VideoControl.component'
 import styled from 'styled-components'
 import { useRecoilState } from 'recoil'
 
 const Shortcut: React.FC = () => {
   const [loading, setLoading] = useRecoilState(loadingState)
   const [{ isEdit, thumbnails }, setVideoResource] = useRecoilState(videoResourceState)
-  const [cursorPoint, setCursorPoint] = useRecoilState(cursorPointState)
 
   const videoRef = useRef() as React.MutableRefObject<CustomVideoElement>
   const svgRef = useRef() as React.MutableRefObject<SVGSVGElement>
-  const mainRef = useRef() as React.MutableRefObject<HTMLElement>
+  const wrapperRef = useRef() as React.MutableRefObject<HTMLDivElement>
 
   const layout: SliderLayout = {
     width:
-      mainRef.current && mainRef.current instanceof HTMLElement
-        ? Math.min(mainRef.current.offsetWidth, 800)
+      wrapperRef.current && wrapperRef.current instanceof HTMLElement
+        ? Math.min(wrapperRef.current.offsetWidth, 1000)
         : 600,
     height: 140,
     expandHeight: 2,
@@ -32,6 +32,12 @@ const Shortcut: React.FC = () => {
       left: 20,
     },
   }
+
+  console.log(
+    '1',
+    wrapperRef.current && wrapperRef.current.clientWidth,
+    wrapperRef.current && Math.min(wrapperRef.current.offsetWidth, 1000)
+  )
 
   const onFileUpload = useCallback(
     async ({ target: { files } }: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,49 +91,6 @@ const Shortcut: React.FC = () => {
     [videoRef]
   )
 
-  //   const onMouseDownCursor = useCallback(() => {
-  //     const cursor = document.querySelector('.cursor-group')
-  //     cursor instanceof HTMLDivElement && cursor.classList.add('active')
-  //   }, [])
-  //   const onMouseUpCursor = useCallback(() => {
-  //     const cursor = document.querySelector('.cursor-group')
-  //     cursor instanceof HTMLDivElement && cursor.classList.remove('active')
-  //   }, [])
-  //   const onMouseMoveCursor = useCallback(
-  //     (event: React.MouseEvent<HTMLDivElement>) => {
-  //       const { clientX } = event
-  //       const cursor = document.querySelector('.cursor-group')
-  //       const container = document.querySelector('.tool-container')
-  //       if (
-  //         !(cursor instanceof HTMLDivElement) ||
-  //         !(container instanceof HTMLDivElement) ||
-  //         typeof videoRef.current === 'undefined'
-  //       )
-  //         return
-  //       if (!cursor.classList.contains('active')) return
-  //       const position = clientX - container.getBoundingClientRect().left
-  //       const time = (position / container.clientWidth) * videoRef.current.duration
-  //       if (time < 0 || time > videoRef.current.duration) return
-
-  //       const timeIndicator = document.querySelector('.time-indicator')
-  //       if (!(timeIndicator instanceof HTMLDivElement)) return
-  //       timeIndicator.textContent = convertMillisecondsToTime(time)
-
-  //       const initialPosition = (time / videoRef.current.duration) * container.clientWidth
-  //       cursor.style.transform = `translateX(${initialPosition}px)`
-  //       timeIndicator.style.transform = `translateX(${initialPosition}px)`
-
-  //       videoRef.current.currentTime = time
-  //     },
-  //     [videoRef]
-  //   )
-
-  //   useEffect(() => {
-  //     window.addEventListener('mouseup', onMouseUpCursor)
-
-  //     return () => window.removeEventListener('mouseup', onMouseUpCursor)
-  //   }, [])
-
   const onLoadedMetadata = useCallback(() => {
     const { duration, videoWidth, videoHeight } = videoRef.current
     const args: SliderArgs = {
@@ -138,117 +101,110 @@ const Shortcut: React.FC = () => {
 
     videoRef.current.style.aspectRatio = findClosestRatio(videoWidth, videoHeight)
 
-    slider(svgRef, args, thumbnails, setCursorPoint)
-  }, [thumbnails])
+    slider(svgRef, videoRef, args, thumbnails)
+  }, [thumbnails, layout])
+
+  const onTimeUpdate = useCallback(
+    (event: Event) => {
+      const { target } = event
+      if (target instanceof HTMLVideoElement) {
+        const ref = target as CustomVideoElement
+        if (target.paused) return
+
+        const xScale = d3
+          .scaleLinear()
+          .domain([0, ref.duration])
+          .range([0, layout.width - layout.margin.left - layout.margin.right])
+
+        const cursorNode = d3.select('.cursor').node()
+        if (cursorNode instanceof SVGGElement) {
+          const { width, height } = cursorNode.getBoundingClientRect()
+          const [defaultX, defaultY] = [
+            Math.floor(layout.margin.left - width / 2),
+            Math.floor(layout.margin.top - (height + layout.expandHeight)),
+          ]
+          const endTime = ref.timeRange[1]
+
+          if (target.currentTime > endTime) {
+            ref.pause()
+            ref.currentTime = endTime
+            d3.select('.cursor')
+              .attr(
+                'transform',
+                `translate(${Math.floor(xScale(endTime) + defaultX)}, ${defaultY})`
+              )
+              .attr('x', Math.floor(xScale(endTime) + defaultX))
+            setVideoResource((prev) => ({ ...prev, isPaused: true }))
+          } else {
+            d3.select('.cursor')
+              .attr(
+                'transform',
+                `translate(${Math.floor(xScale(target.currentTime) + defaultX)}, ${defaultY})`
+              )
+              .attr('x', Math.floor(xScale(target.currentTime) + defaultX))
+          }
+        }
+      }
+    },
+    [layout]
+  )
 
   useEffect(() => {
     if (!isEdit || !svgRef.current || !videoRef.current) return
 
     videoRef.current.addEventListener('loadedmetadata', onLoadedMetadata)
+    videoRef.current.addEventListener('timeupdate', onTimeUpdate)
 
-    return () => videoRef.current.removeEventListener('loadedmetadata', onLoadedMetadata)
+    return () => {
+      videoRef.current.removeEventListener('loadedmetadata', onLoadedMetadata)
+      videoRef.current.removeEventListener('timeupdate', onTimeUpdate)
+    }
   }, [isEdit])
 
   useEffect(() => {
-    /** @deprecated */
-    // if (!isEdit || !svgRef.current || !videoRef.current) return
-    // const cursor = d3.select(svgRef.current).select<SVGGElement>('.cursor')
-    // const cursorNode = cursor.node()
-    // if (cursorNode instanceof SVGGElement) {
-    //   const { position, time } = cursorPoint
-    //   const { width, height } = cursorNode.getBoundingClientRect()
-    //   const [translateX, translateY] = [
-    //     position[0] + Math.floor(layout.margin.left - width / 2),
-    //     Math.floor(layout.margin.top - (height + layout.expandHeight)),
-    //   ]
-    //   cursorNode.setAttribute('transform', `translate(${translateX}, ${translateY})`)
-    //   cursor
-    //     .on('mousedown', function (_: d3.ClientPointEvent) {
-    //       this.classList.add('active')
-    //     })
-    //     .on('mouseup', function (_: d3.ClientPointEvent) {
-    //       this.classList.remove('active')
-    //     })
-    //     .on('mousemove', function (event: d3.ClientPointEvent) {
-    //       if (!this.classList.contains('active')) return
-    //       const container = document.querySelector('.tool-container')
-    //       if (!(container instanceof HTMLDivElement)) return
-    //       const { clientX } = event
-    //       const moveX = clientX - container.getBoundingClientRect().left
-    //       console.log('mousemove', clientX, moveX)
-    //       cursorNode.setAttribute('transform', `translate(${moveX}, ${translateY})`)
-    //       // const position = clientX - container.getBoundingClientRect().left
-    //     })
-    // }
-  }, [isEdit, cursorPoint])
+    console.log('currentTie effect', videoRef.current.currentTime, videoRef.current.readyState)
+    if (!videoRef.current.readyState) return
+  }, [videoRef.current])
 
   return (
-    <Main ref={mainRef}>
-      <div className="video-wrapper">
-        <div className={`upload-container` + (isEdit ? ' hidden' : '')}>
-          {/* video file type must be MP4 */}
-          <input
-            type="file"
-            name="video-upload"
-            id="video-upload"
-            className="hidden"
-            onChange={onFileUpload}
-            accept="video/*"
-          />
+    <Main margin={layout.margin}>
+      <div ref={wrapperRef} className="wrapper">
+        <div className="video-wrapper">
+          <div className={`upload-container` + (isEdit ? ' hidden' : '')}>
+            {/* video file type must be MP4 */}
+            <input
+              type="file"
+              name="video-upload"
+              id="video-upload"
+              className="hidden"
+              onChange={onFileUpload}
+              accept="video/*"
+            />
 
-          <UploadButton className="upload-button" type="button" role="button">
-            <label htmlFor="video-upload">
-              {loading ? <Loading /> : <span className="upload-button-text">Video Upload</span>}
-            </label>
-          </UploadButton>
-        </div>
-        <div className={`video-container` + (isEdit ? '' : ' hidden')}>
-          <video ref={videoRef} preload="metadata">
-            {/* {isEdit && <source src={videoDataURI} type={videoMimeType} />} */}
-          </video>
-        </div>
-      </div>
-      {isEdit && (
-        <div className="tool-wrapper">
-          <div className="button-group">
-            <button
-              onClick={() => {
-                console.log('button 1', videoRef.current && videoRef.current.duration)
-                videoRef.current && (videoRef.current.currentTime = 5.7)
-              }}>
-              w: 0 ~ 100
-            </button>
-            &nbsp;
-            <button
-              onClick={() => {
-                console.log('button 2')
-              }}>
-              position: {cursorPoint.position.join(',')}
-              <br />
-              time: {cursorPoint.time.join(',')}
-            </button>
+            <UploadButton className="upload-button" type="button" role="button">
+              <label htmlFor="video-upload">
+                {loading ? <Loading /> : <span className="upload-button-text">Video Upload</span>}
+              </label>
+            </UploadButton>
+          </div>
+          <div className={`video-container` + (isEdit ? '' : ' hidden')}>
+            <video ref={videoRef} preload="metadata">
+              {/* {isEdit && <source src={videoDataURI} type={videoMimeType} />} */}
+            </video>
           </div>
         </div>
-      )}
+        {isEdit && (
+          <div className="control-wrapper">
+            <div className="button-group">
+              <VideoControl videoRef={videoRef} />
+            </div>
+          </div>
+        )}
+      </div>
       {isEdit && (
         <ToolWrapper layout={layout}>
           <div className="tool-container">
             <svg ref={svgRef}></svg>
-            {/* <div
-              className="cursor-control"
-              {...{ style: { transform: `translate(${cursorPoint.position[0]}px, 0px)` } }}>
-              <div
-                className="cursor-group"
-                // onMouseDown={onMouseDownCursor}
-                // onMouseUp={onMouseUpCursor}
-              >
-                <div className="cursor-pointer" onMouseDown={() => console.log('header')}>
-                  <CursorIconSvg />
-                </div>
-              </div>
-
-              <div className="time-indicator">00:00:00</div>
-            </div> */}
           </div>
         </ToolWrapper>
       )}
@@ -256,31 +212,46 @@ const Shortcut: React.FC = () => {
   )
 }
 
-export const Main = styled.main`
+export const Main = styled.main<{ margin: SliderLayout['margin'] }>`
+  display: flex;
+  flex-flow: column nowrap;
+  align-items: center;
+  justify-content: center;
   outline: none;
 
   width: 100%;
   min-height: 100vh;
 
   padding: 2rem 2.5rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-flow: column nowrap;
-  gap: 1.25rem;
 
-  .video-wrapper {
-    user-select: none;
-
-    position: relative;
+  .wrapper {
+    width: 100%;
     display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: ${({ margin }) => `0 ${margin.right}px 0 ${margin.left}px`};
+    .video-wrapper {
+      user-select: none;
 
-    .video-container {
-      video {
-        max-width: 30rem;
-        max-height: 25rem;
-        aspect-ratio: 1;
-        object-fit: contain;
+      position: relative;
+      display: flex;
+
+      .video-container {
+        video {
+          max-width: 30rem;
+          max-height: 25rem;
+          aspect-ratio: 1;
+          object-fit: contain;
+        }
+      }
+    }
+
+    .control-wrapper {
+      display: flex;
+      flex-flow: row nowrap;
+      .button-group {
+        display: inline-flex;
+        flex-flow: row nowrap;
       }
     }
   }

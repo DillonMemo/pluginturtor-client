@@ -13,14 +13,14 @@ export const loadingState = atom<boolean>({
 
 export type videoResource = {
   isEdit: boolean
-  // videoDataURI: string
-  // videoMimeType: string
+  isPaused: boolean
   thumbnails: Multer.MulterFile[]
 }
 export const videoResourceState = atom<videoResource>({
   key: 'videoResource',
   default: {
     isEdit: false,
+    isPaused: true,
     thumbnails: [],
   },
 })
@@ -28,13 +28,4 @@ export const videoResourceState = atom<videoResource>({
 export const videoElementState = atom<React.MutableRefObject<HTMLVideoElement>>({
   key: 'videoElement',
   default: undefined,
-})
-
-export type CursorPointType = { time: number[]; position: number[] }
-export const cursorPointState = atom<CursorPointType>({
-  key: 'cursorPoint',
-  default: {
-    time: [0, 0],
-    position: [0, 0],
-  },
 })

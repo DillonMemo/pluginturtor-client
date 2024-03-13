@@ -10,7 +10,7 @@
   --href-color: #0076d1;
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
     --foreground-rgb: 219, 219, 219;
     --background-start-rgb: 32, 43, 56;
@@ -18,7 +18,7 @@
     --background-foreground: 47, 43, 56;
     --href-color: #41adff;
   }
-}
+} */
 
 body {
   color: rgb(var(--foreground-rgb));

@@ -52,4 +52,5 @@ export type SliderArgs = {
   starting_max?: number
 }
 
-export type CustomVideoElement = HTMLVideoElement
+export type CursorPointType = { positionRange: number[]; timeRange: number[] }
+export type CustomVideoElement = HTMLVideoElement & CursorPointType
