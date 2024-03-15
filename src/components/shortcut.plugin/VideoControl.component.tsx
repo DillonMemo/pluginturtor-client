@@ -16,15 +16,17 @@ export default function VideoControl({ videoRef }: Props) {
         videoRef.current.pause()
         setVideoResource((prev) => ({ ...prev, isPaused: !prev.isPaused }))
       }}>
-      <PauseIcon />
+      <PlayIcon />
     </button>
   ) : (
     <button
       onClick={() => {
+        const { timeRange, currentTime } = videoRef.current
+        currentTime === timeRange[1] && (videoRef.current.currentTime = timeRange[0])
         videoRef.current.play()
         setVideoResource((prev) => ({ ...prev, isPaused: !prev.isPaused }))
       }}>
-      <PlayIcon />
+      <PauseIcon />
     </button>
   )
 }

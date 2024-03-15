@@ -4,7 +4,7 @@ import * as d3 from 'd3'
 import { CustomVideoElement, Multer, SliderArgs, SliderLayout } from '@/src/type'
 import React, { useCallback, useEffect, useRef } from 'react'
 import { findClosestRatio, slider } from '@/src/utils'
-import { loadingState, videoResourceState } from '@/src/recoil/atom'
+import { loadingState, videoResource, videoResourceState } from '@/src/recoil/atom'
 import Loading from '../Loading'
 import VideoControl from './VideoControl.component'
 import styled from 'styled-components'
@@ -168,7 +168,12 @@ const Shortcut: React.FC = () => {
 
   return (
     <Main margin={layout.margin}>
-      <div ref={wrapperRef} className="wrapper">
+      <div
+        ref={wrapperRef}
+        className="wrapper"
+        style={{
+          gridTemplateColumns: isEdit ? `repeat(2, 1fr)` : `repeat(1, 1fr)`,
+        }}>
         <div className="video-wrapper">
           <div className={`upload-container` + (isEdit ? ' hidden' : '')}>
             {/* video file type must be MP4 */}
@@ -212,7 +217,9 @@ const Shortcut: React.FC = () => {
   )
 }
 
-export const Main = styled.main<{ margin: SliderLayout['margin'] }>`
+export const Main = styled.main<{
+  margin: SliderLayout['margin']
+}>`
   display: flex;
   flex-flow: column nowrap;
   align-items: center;
@@ -225,16 +232,17 @@ export const Main = styled.main<{ margin: SliderLayout['margin'] }>`
   padding: 2rem 2.5rem;
 
   .wrapper {
-    width: 100%;
-    display: flex;
-    align-items: center;
+    display: grid;
     gap: 1.25rem;
+
+    width: 100%;
     padding: ${({ margin }) => `0 ${margin.right}px 0 ${margin.left}px`};
     .video-wrapper {
       user-select: none;
-
       position: relative;
+
       display: flex;
+      justify-content: center;
 
       .video-container {
         video {
@@ -249,6 +257,7 @@ export const Main = styled.main<{ margin: SliderLayout['margin'] }>`
     .control-wrapper {
       display: flex;
       flex-flow: row nowrap;
+      justify-content: center;
       .button-group {
         display: inline-flex;
         flex-flow: row nowrap;
